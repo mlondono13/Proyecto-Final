@@ -37,7 +37,7 @@ def clean_data_final(file_path):
 
 # --- CARGA DE DATOS ---
 try:
-    df = clean_data_final('https://github.com/mlondono13/Proyecto-Final/blob/main/HDHI%20Admission%20data.csv')
+    df = clean_data_final('https://raw.githubusercontent.com/mlondono13/Proyecto-Final/main/HDHI%20Admission%20data.csv')
     st.sidebar.success("✅ Datos cargados y limpiados")
 except Exception as e:
     st.sidebar.error(f"❌ Error al cargar datos: {e}")
