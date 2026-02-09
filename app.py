@@ -131,7 +131,3 @@ with tab3:
                     st.write(completion.choices[0].message.content)
         except Exception as e:
             st.error(f"Error con la API Key: {e}")
-
-# --- FOOTER ---
-st.sidebar.markdown("---")
-st.sidebar.write("Autor: Manuel Londoño")
