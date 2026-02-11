@@ -13,33 +13,23 @@ st.set_page_config(
 )
 
 # Estilo CSS para colores institucionales (Azul y Dorado)
-# Estilo CSS para tarjetas con etiquetas oscuras
 st.markdown("""
     <style>
-    /* Fondo de la página */
     .main { background-color: #f8f9fa; }
-    
-    /* Contenedor de la tarjeta de métrica */
     div[data-testid="stMetric"] {
-        background-color: #ffffff; /* Fondo blanco para contraste */
+        background-color: #ffffff;
         padding: 15px;
         border-radius: 10px;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.1); /* Sombra suave */
-        border-left: 5px solid #003366; /* Borde lateral azul EAFIT */
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+        border-left: 5px solid #003366;
     }
-
-    /* Color de la etiqueta (el título pequeño) */
     [data-testid="stMetricLabel"] {
-        color: #1f1f1f !important; /* Gris muy oscuro / Negro */
+        color: #1f1f1f !important;
         font-weight: 600;
     }
-
-    /* Color del valor (el número grande) */
     [data-testid="stMetricValue"] {
-        color: #003366 !important; /* Azul EAFIT */
+        color: #003366 !important;
     }
-
-    /* Títulos generales */
     h1, h2, h3 { color: #003366; }
     </style>
     """, unsafe_allow_html=True)
@@ -51,6 +41,10 @@ URL_DATA = "https://raw.githubusercontent.com/mlondono13/Proyecto-Final/main/HDH
 def load_and_clean_data(url):
     df = pd.read_csv(url, low_memory=False)
     log_limpieza = []
+    
+    # --- MAPEO DE GÉNERO (M/F -> Masculino/Femenino) ---
+    df['GENDER'] = df['GENDER'].map({'M': 'Masculino', 'F': 'Femenino'})
+    log_limpieza.append("Mapeo de Género: Se transformaron etiquetas 'M/F' a 'Masculino/Femenino'.")
     
     # Limpieza de columnas numéricas
     float_cols = ['EF', 'HB', 'CREATININE', 'GLUCOSE', 'UREA', 'TLC', 'PLATELETS', 'AGE']
@@ -82,7 +76,10 @@ with st.sidebar:
     st.divider()
     st.subheader("Filtros Globales")
     age_range = st.slider("Rango de Edad", int(df_raw['AGE'].min()), int(df_raw['AGE'].max()), (20, 80))
-    gender = st.multiselect("Género", options=df_raw['GENDER'].unique(), default=df_raw['GENDER'].unique())
+    
+    # El multiselect ahora mostrará Masculino/Femenino automáticamente
+    gender_options = df_raw['GENDER'].unique()
+    gender = st.multiselect("Género", options=gender_options, default=gender_options)
     
     df_filtered = df_raw[
         (df_raw['AGE'].between(age_range[0], age_range[1])) &
@@ -101,18 +98,17 @@ with tab1:
     col3.metric("Estancia Media", f"{df_filtered['DURATION OF STAY'].mean():.1f} días")
 
     fig_age = px.histogram(df_filtered, x="AGE", color="OUTCOME", barmode="overlay",
-                           title="Distribución de Edad", color_discrete_sequence=["#003366", "#D4AF37", "gray"])
+                            title="Distribución de Edad", color_discrete_sequence=["#003366", "#D4AF37", "gray"],
+                            labels={"AGE": "Edad", "OUTCOME": "Resultado"})
     st.plotly_chart(fig_age, use_container_width=True)
 
 # --- TAB 2: RESPUESTA A PREGUNTAS DE NEGOCIO ---
 with tab2:
     st.header("🎯 Análisis Estratégico y de Riesgo")
     
-    # FILA 1: Jerarquía de Riesgo (Sunburst)
     st.subheader("1. Análisis de Comorbilidad y Supervivencia")
     st.markdown("Este gráfico jerárquico permite ver cómo interactúan el género y la diabetes en el desenlace del paciente.")
     
-    # Creamos una columna auxiliar para que el gráfico sea más legible
     df_sun = df_filtered.copy()
     df_sun['Diabetes'] = df_sun['DM'].map({1: 'Con Diabetes', 0: 'Sin Diabetes'})
     
@@ -121,19 +117,16 @@ with tab2:
         path=['GENDER', 'Diabetes', 'OUTCOME'], 
         color='OUTCOME',
         color_discrete_map={'DISCHARGE': '#003366', 'DEAD': '#D4AF37'},
-        title="Flujo de Riesgo: Género -> Diabetes -> Resultado"
+        title="Flujo de Riesgo: Género -> Diabetes -> Resultado",
+        labels={"GENDER": "Género", "OUTCOME": "Resultado"}
     )
     st.plotly_chart(fig_sun, use_container_width=True)
 
-    
-
     st.divider()
 
-    # FILA 2: Mapa de Calor de Correlaciones
     st.subheader("2. Mapa de Calor: Correlaciones Clínicas")
-    st.markdown("Identificación de relaciones entre biomarcadores (Hemoglobina, Creatinina, Edad) y la estancia hospitalaria.")
+    st.markdown("Identificación de relaciones entre biomarcadores y la estancia hospitalaria.")
     
-    # Seleccionamos variables numéricas relevantes
     cols_corr = ['AGE', 'HB', 'CREATININE', 'GLUCOSE', 'DURATION OF STAY', 'MORTALITY']
     corr_matrix = df_filtered[cols_corr].corr()
     
@@ -153,14 +146,9 @@ with tab3:
         st.write(f"✔️ {l}")
     st.dataframe(df_filtered.head(50))
 
-
-
 with tab4:
     st.header("📋 Informe Ejecutivo de Consultoría")
-    st.markdown("""
-        Este módulo utiliza inteligencia artificial para analizar el segmento de pacientes seleccionado 
-        y generar un informe de recomendaciones estratégicas para la dirección del hospital.
-    """)
+    st.markdown("Generación de informes estratégicos mediante IA.")
 
     if not user_api_key:
         st.info("🔑 Ingrese su Groq API Key en la barra lateral para habilitar la generación de informes.")
@@ -169,7 +157,6 @@ with tab4:
             try:
                 client = Groq(api_key=user_api_key)
                 
-                # PREPARACIÓN DE MÉTRICAS (Igual que antes)
                 mortalidad_tasa = df_filtered['MORTALITY'].mean() * 100
                 estancia_media = df_filtered['DURATION OF STAY'].mean()
                 preexistencias = ['DM', 'HTN', 'CKD', 'CAD']
@@ -185,7 +172,7 @@ with tab4:
                 - Rango de edad analizado: {age_range[0]} - {age_range[1]} años
                 """
 
-                with st.spinner("El Consultor Senior está redactando el informe con Llama 3.3..."):
+                with st.spinner("El Consultor Senior está redactando el informe..."):
                     response = client.chat.completions.create(
                         messages=[
                             {
@@ -197,7 +184,6 @@ with tab4:
                                 "content": f"Genera un informe profesional estructurado (Resumen, Riesgos, Recomendaciones) para este contexto:\n{contexto_informe}"
                             }
                         ],
-                        # MODELO ACTUALIZADO AQUÍ:
                         model="llama-3.3-70b-versatile", 
                         temperature=0.3
                     )
@@ -208,5 +194,4 @@ with tab4:
                     st.markdown("---")
                     
             except Exception as e:
-                # Si el modelo 70b llegara a dar error de cuota, puedes intentar con "llama-3.1-8b-instant"
                 st.error(f"Error al generar el informe: {e}")
