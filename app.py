@@ -104,15 +104,47 @@ with tab1:
                            title="Distribución de Edad", color_discrete_sequence=["#003366", "#D4AF37"])
     st.plotly_chart(fig_age, use_container_width=True)
 
+# --- TAB 2: RESPUESTA A PREGUNTAS DE NEGOCIO ---
 with tab2:
-    st.subheader("Análisis de Riesgo")
-    # Gráfico de barras para preexistencias
-    preexistencias = ['DM', 'HTN', 'CKD', 'CAD']
-    resumen = df_filtered.groupby('OUTCOME')[preexistencias].mean().reset_index()
-    fig_bar = px.bar(resumen, x="OUTCOME", y=preexistencias, barmode="group",
-                     title="Prevalencia de Enfermedades según Resultado",
-                     color_discrete_sequence=["#003366", "#D4AF37", "#A9A9A9", "#666666"])
-    st.plotly_chart(fig_bar, use_container_width=True)
+    st.header("🎯 Análisis Estratégico y de Riesgo")
+    
+    # FILA 1: Jerarquía de Riesgo (Sunburst)
+    st.subheader("1. Análisis de Comorbilidad y Supervivencia")
+    st.markdown("Este gráfico jerárquico permite ver cómo interactúan el género y la diabetes en el desenlace del paciente.")
+    
+    # Creamos una columna auxiliar para que el gráfico sea más legible
+    df_sun = df_filtered.copy()
+    df_sun['Diabetes'] = df_sun['DM'].map({1: 'Con Diabetes', 0: 'Sin Diabetes'})
+    
+    fig_sun = px.sunburst(
+        df_sun, 
+        path=['GENDER', 'Diabetes', 'OUTCOME'], 
+        color='OUTCOME',
+        color_discrete_map={'DISCHARGE': '#003366', 'DEAD': '#D4AF37'},
+        title="Flujo de Riesgo: Género -> Diabetes -> Resultado"
+    )
+    st.plotly_chart(fig_sun, use_container_width=True)
+
+    
+
+    st.divider()
+
+    # FILA 2: Mapa de Calor de Correlaciones
+    st.subheader("2. Mapa de Calor: Correlaciones Clínicas")
+    st.markdown("Identificación de relaciones entre biomarcadores (Hemoglobina, Creatinina, Edad) y la estancia hospitalaria.")
+    
+    # Seleccionamos variables numéricas relevantes
+    cols_corr = ['AGE', 'HB', 'CREATININE', 'GLUCOSE', 'DURATION OF STAY', 'MORTALITY']
+    corr_matrix = df_filtered[cols_corr].corr()
+    
+    fig_heat = px.imshow(
+        corr_matrix, 
+        text_auto=".2f", 
+        aspect="auto",
+        color_continuous_scale=[(0, "#D4AF37"), (0.5, "#ffffff"), (1, "#003366")],
+        title="Matriz de Correlación de Factores Críticos"
+    )
+    st.plotly_chart(fig_heat, use_container_width=True)
 
 with tab3:
     st.header("Módulo de Limpieza")
