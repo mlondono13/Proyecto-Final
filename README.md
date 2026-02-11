@@ -43,32 +43,6 @@ LLM Integration: Implementación de la API de Groq utilizando el modelo llama-3.
 Gemini said
 Aquí tienes el bloque completo en formato Markdown limpio y listo para copiar en tu archivo README.md:
 
-Markdown
-### 🚀 Instalación y Ejecución Local
-
-1. **Crear y activar entorno virtual:**
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # En Windows: venv\Scripts\activate
-Instalar dependencias:
-
-Bash
-pip install -r requirements.txt
-Ejecutar aplicación:
-
-Bash
-streamlit run app.py
-🌐 Link al Despliegue
-Accede a la plataforma en vivo:
-
-👉 Link a Streamlit Cloud
-
-🛠️ Tecnologías y Metodología
-ETL: Limpieza e imputación de nulos mediante medianas para asegurar la integridad estadística y evitar sesgos por valores atípicos.
-
-EDA: Visualizaciones interactivas desarrolladas con Plotly, incluyendo diagramas de Sunburst para jerarquía de riesgos y Heatmaps de correlación clínica.
-
-LLM Integration: Implementación de la API de Groq utilizando el modelo llama-3.3-70b-versatile para la generación automatizada de informes ejecutivos.
 
 👥 Créditos
 Autor: Marcel Londoño Leon - Jerónimo Piedrahita Franco
