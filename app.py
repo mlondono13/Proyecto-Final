@@ -13,11 +13,33 @@ st.set_page_config(
 )
 
 # Estilo CSS para colores institucionales (Azul y Dorado)
+# Estilo CSS para tarjetas con etiquetas oscuras
 st.markdown("""
     <style>
-    .main { background-color: #f5f5f5; }
-    .stMetric { background-color: #ffffff; padding: 15px; border-radius: 10px; border-left: 5px solid #003366; }
-    div.stButton > button:first-child { background-color: #003366; color: white; }
+    /* Fondo de la página */
+    .main { background-color: #f8f9fa; }
+    
+    /* Contenedor de la tarjeta de métrica */
+    div[data-testid="stMetric"] {
+        background-color: #ffffff; /* Fondo blanco para contraste */
+        padding: 15px;
+        border-radius: 10px;
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.1); /* Sombra suave */
+        border-left: 5px solid #003366; /* Borde lateral azul EAFIT */
+    }
+
+    /* Color de la etiqueta (el título pequeño) */
+    [data-testid="stMetricLabel"] {
+        color: #1f1f1f !important; /* Gris muy oscuro / Negro */
+        font-weight: 600;
+    }
+
+    /* Color del valor (el número grande) */
+    [data-testid="stMetricValue"] {
+        color: #003366 !important; /* Azul EAFIT */
+    }
+
+    /* Títulos generales */
     h1, h2, h3 { color: #003366; }
     </style>
     """, unsafe_allow_html=True)
