@@ -153,19 +153,6 @@ with tab3:
         st.write(f"✔️ {l}")
     st.dataframe(df_filtered.head(50))
 
-with tab4:
-    if not user_api_key:
-        st.info("Introduce tu API Key de Groq para habilitar el consultor.")
-    else:
-        client = Groq(api_key=user_api_key)
-        prompt = st.text_input("Pregunta al consultor:")
-        if prompt:
-            context = f"Pacientes analizados: {len(df_filtered)}. Tasa muerte: {df_filtered['MORTALITY'].mean():.2%}"
-            chat = client.chat.completions.create(
-                messages=[{"role": "system", "content": "Eres un experto en salud pública de EAFIT."},
-                          {"role": "user", "content": f"{context}. Pregunta: {prompt}"}],
-                model="llama3-8b-8192")
-            st.write(chat.choices[0].message.content)
 
 
 with tab4:
