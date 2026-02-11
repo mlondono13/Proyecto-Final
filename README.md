@@ -43,8 +43,8 @@ LLM Integration: Implementación de la API de Groq utilizando el modelo llama-3.
 Gemini said
 Aquí tienes el bloque completo en formato Markdown limpio y listo para copiar en tu archivo README.md:
 
-
-👥 Créditos
+-------------------
+##👥 Créditos
 Autor: Marcel Londoño Leon - Jerónimo Piedrahita Franco
 
 Institución: Universidad EAFIT
