@@ -1,0 +1,11 @@
+[theme]
+primaryColor = "#003366"      # Azul Institucional
+backgroundColor = "#f8f9fa"   # Gris muy claro para el fondo
+secondaryBackgroundColor = "#ffffff" # Blanco para los widgets
+textColor = "#1f1f1f"         # Gris oscuro/Negro para lectura
+font = "sans serif"
+
+[server]
+headless = true
+enableCORS = false
+enableXsrfProtection = false
