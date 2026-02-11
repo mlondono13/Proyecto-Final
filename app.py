@@ -101,7 +101,7 @@ with tab1:
     col3.metric("Estancia Media", f"{df_filtered['DURATION OF STAY'].mean():.1f} días")
 
     fig_age = px.histogram(df_filtered, x="AGE", color="OUTCOME", barmode="overlay",
-                           title="Distribución de Edad", color_discrete_sequence=["#003366", "#D4AF37"])
+                           title="Distribución de Edad", color_discrete_sequence=["#003366", "#D4AF37", "gray"])
     st.plotly_chart(fig_age, use_container_width=True)
 
 # --- TAB 2: RESPUESTA A PREGUNTAS DE NEGOCIO ---
