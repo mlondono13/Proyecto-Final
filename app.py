@@ -2,132 +2,157 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
+import plotly.graph_objects as go
 from groq import Groq
 
-# --- 1. CONFIGURACIÓN DE PÁGINA ---
-st.set_page_config(page_title="HDHI Health Intelligence", layout="wide", page_icon="🏥")
+# --- 1. CONFIGURACIÓN DE PÁGINA (ESTILO EAFIT) ---
+st.set_page_config(
+    page_title="HDHI Health Intelligence | EAFIT",
+    layout="wide",
+    page_icon="🏥"
+)
 
-# --- 2. CONSTANTES Y CARGA DE DATOS ---
+# Estilo CSS para colores institucionales (Azul y Dorado)
+st.markdown("""
+    <style>
+    .main { background-color: #f5f5f5; }
+    .stMetric { background-color: #ffffff; padding: 15px; border-radius: 10px; border-left: 5px solid #003366; }
+    div.stButton > button:first-child { background-color: #003366; color: white; }
+    h1, h2, h3 { color: #003366; }
+    </style>
+    """, unsafe_allow_ Harris=True)
+
+# --- 2. CARGA Y LIMPIEZA DE DATOS (MÓDULO ETL) ---
 URL_DATA = "https://raw.githubusercontent.com/mlondono13/Proyecto-Final/main/HDHI%20Admission%20data.csv"
 
 @st.cache_data
 def load_and_clean_data(url):
     df = pd.read_csv(url, low_memory=False)
     
-    # Columnas críticas a convertir en FLOAT
-    float_cols = ['EF', 'HB', 'CREATININE', 'GLUCOSE', 'UREA', 'TLC', 'PLATELETS']
+    # Registro de limpieza para el usuario
+    log_limpieza = []
     
+    # 1. Limpieza de columnas numéricas
+    float_cols = ['EF', 'HB', 'CREATININE', 'GLUCOSE', 'UREA', 'TLC', 'PLATELETS', 'AGE']
     for col in float_cols:
-        df[col] = df[col].astype(str).str.strip()
-        df[col] = df[col].replace(['', 'nan', '.', 'None', ' ', 'N/A'], np.nan)
-        df[col] = pd.to_numeric(df[col], errors='coerce')
-        df[col] = df[col].fillna(df[col].median()).astype(float)
+        nulls_before = df[col].isna().sum()
+        df[col] = pd.to_numeric(df[col].astype(str).str.strip(), errors='coerce')
+        median_val = df[col].median()
+        df[col] = df[col].fillna(median_val)
+        if nulls_before > 0:
+            log_limpieza.append(f"Columna {col}: Se imputaron {nulls_before} valores nulos con la mediana ({median_val}).")
 
-    # Limpieza de Fechas
+    # 2. Formateo de Fechas
     df['D.O.A'] = pd.to_datetime(df['D.O.A'], dayfirst=True, errors='coerce')
     df['D.O.D'] = pd.to_datetime(df['D.O.D'], dayfirst=True, errors='coerce')
     
-    # Cálculo de estancia (STAY_DAYS)
-    df['STAY_DAYS'] = (df['D.O.D'] - df['D.O.A']).dt.days.astype(float)
-    df['STAY_DAYS'] = df['STAY_DAYS'].fillna(0.0)
+    # 3. Creación de variables objetivo
+    df['MORTALITY'] = df['OUTCOME'].apply(lambda x: 1 if x == 'DEAD' else 0)
     
-    # Ajuste para evitar error en Plotly size
-    df['STAY_DAYS_VISUAL'] = df['STAY_DAYS'].apply(lambda x: x if x > 0 else 0.5)
+    return df, log_limpieza
+
+df_raw, logs = load_and_clean_data(URL_DATA)
+
+# --- 3. BARRA LATERAL (FILTROS Y API) ---
+with st.sidebar:
+    st.image("https://www.eafit.edu.co/LogoEAFIT.png", width=150) # Opcional si tienes la URL
+    st.title("Configuración")
+    user_api_key = st.text_input("Groq API Key", type="password")
     
-    # Mapeo de categorías
-    df['GENDER'] = df['GENDER'].map({'M': 'Masculino', 'F': 'Femenino'})
-    df['RURAL'] = df['RURAL'].map({'R': 'Rural', 'U': 'Urbano'})
+    st.divider()
+    st.subheader("Filtros Globales")
+    age_range = st.slider("Rango de Edad", int(df_raw['AGE'].min()), int(df_raw['AGE'].max()), (20, 80))
+    gender = st.multiselect("Género", options=df_raw['GENDER'].unique(), default=df_raw['GENDER'].unique())
     
-    return df
-
-# Ejecutar carga
-try:
-    df = load_and_clean_data(URL_DATA)
-except Exception as e:
-    st.error(f"Error al conectar con GitHub: {e}")
-    st.stop()
-
-# --- 3. SIDEBAR (FILTROS Y API KEY) ---
-st.sidebar.title("Configuración")
-
-# Campo para que el usuario ingrese su propia API KEY
-user_api_key = st.sidebar.text_input("Ingresa tu Groq API Key:", type="password")
-st.sidebar.caption("Obtén tu llave en: https://console.groq.com/")
-
-st.sidebar.divider()
-st.sidebar.header("Filtros de Análisis")
-
-genero_f = st.sidebar.multiselect("Género:", options=df['GENDER'].unique(), default=df['GENDER'].unique())
-sector_f = st.sidebar.multiselect("Ubicación:", options=df['RURAL'].unique(), default=df['RURAL'].unique())
-
-# Aplicar filtros
-df_filtered = df[(df['GENDER'].isin(genero_f)) & (df['RURAL'].isin(sector_f))]
+    df_filtered = df_raw[
+        (df_raw['AGE'].between(age_range[0], age_range[1])) &
+        (df_raw['GENDER'].isin(gender))
+    ]
 
 # --- 4. CUERPO PRINCIPAL ---
-st.title("🏥 Dashboard Inteligente Hospitalario (HDHI)")
-st.markdown("---")
+st.title("🏥 Sistema de Soporte a la Decisión: HDHI")
+st.markdown("Analítica avanzada para la gestión de admisiones hospitalarias y riesgo de mortalidad.")
 
-tab1, tab2, tab3 = st.tabs(["📊 Estadísticas Base", "🧬 Análisis Clínico", "🤖 Consultoría IA"])
+tab1, tab2, tab3, tab4 = st.tabs(["📊 Dashboard General", "🎯 Preguntas de Negocio", "🧹 Módulo de Limpieza", "🤖 IA Consultor"])
 
-# --- TAB 1: VISTA GENERAL ---
+# --- TAB 1: KPI Y EXPLORACIÓN ---
 with tab1:
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Total Pacientes", f"{len(df_filtered):,}")
+    col1.metric("Total Pacientes", len(df_filtered))
     col2.metric("Edad Media", f"{df_filtered['AGE'].mean():.1f} años")
-    col3.metric("Estancia Media", f"{df_filtered['STAY_DAYS'].mean():.1f} d")
-    col4.metric("HB Promedio", f"{df_filtered['HB'].mean():.1f}")
+    col3.metric("Tasa Mortalidad", f"{(df_filtered['MORTALITY'].mean()*100):.1f}%")
+    col4.metric("Estancia Media", f"{df_filtered['DURATION OF STAY'].mean():.1f} días")
 
-    st.subheader("Distribución de Edad")
-    fig_age = px.histogram(df_filtered, x="AGE", color="GENDER", nbins=30, 
-                           title="Pirámide Poblacional", barmode='overlay')
-    st.plotly_chart(fig_age, use_container_width=True)
+    c1, c2 = st.columns(2)
+    with c1:
+        fig_age = px.histogram(df_filtered, x="AGE", color="OUTCOME", title="Distribución de Edad por Resultado",
+                               color_discrete_sequence=["#003366", "#D4AF37"])
+        st.plotly_chart(fig_age, use_container_width=True)
+    with c2:
+        fig_stay = px.box(df_filtered, x="OUTCOME", y="DURATION OF STAY", title="Estancia Hospitalaria vs Resultado",
+                          color="OUTCOME", color_discrete_sequence=["#003366", "#D4AF37"])
+        st.plotly_chart(fig_stay, use_container_width=True)
 
-# --- TAB 2: ANÁLISIS CLÍNICO ---
+# --- TAB 2: RESPUESTA A PREGUNTAS DE NEGOCIO ---
 with tab2:
-    st.subheader("Relación Laboratorios vs Estancia")
-    fig_scatter = px.scatter(
-        df_filtered, x="HB", y="CREATININE", 
-        size="STAY_DAYS_VISUAL", color="EF",
-        hover_data={'STAY_DAYS': True, 'STAY_DAYS_VISUAL': False, 'AGE': True},
-        title="Dispersión Clínica (Tamaño: Estancia, Color: Fracción Eyección)",
-        color_continuous_scale="RdYlGn"
-    )
+    st.header("🎯 Análisis Estratégico")
+    
+    # Pregunta 1: Factores de Riesgo
+    st.subheader("1. ¿Qué condiciones preexistentes aumentan más el riesgo de muerte?")
+    risk_cols = ['DM', 'HTN', 'CKD', 'HB', 'CAD']
+    risk_analysis = df_filtered.groupby('OUTCOME')[risk_cols].mean().T
+    fig_risk = px.bar(risk_analysis, barmode='group', title="Prevalencia de Enfermedades por Estado Final",
+                      labels={'index': 'Condición', 'value': 'Proporción'},
+                      color_discrete_sequence=["#003366", "#D4AF37"])
+    st.plotly_chart(fig_risk, use_container_width=True)
+
+    # Pregunta 2: Correlación Bioquímica
+    st.subheader("2. Relación entre Creatinina, Glucosa y Mortalidad")
+    fig_scatter = px.scatter(df_filtered, x="CREATININE", y="GLUCOSE", color="OUTCOME", 
+                             size="DURATION OF STAY", hover_data=['AGE'],
+                             title="Análisis de Biomarcadores",
+                             color_discrete_sequence=["#003366", "#D4AF37"])
     st.plotly_chart(fig_scatter, use_container_width=True)
 
-    st.divider()
-    cols_corr = ['AGE', 'HB', 'EF', 'CREATININE', 'GLUCOSE', 'STAY_DAYS', 'DM', 'HTN', 'CKD']
-    corr_matrix = df_filtered[cols_corr].corr()
-    fig_heat = px.imshow(corr_matrix, text_auto=".2f", color_continuous_scale='RdBu_r', title="Mapa de Correlación")
-    st.plotly_chart(fig_heat, use_container_width=True)
-
-# --- TAB 3: CONSULTORÍA IA ---
+# --- TAB 3: MÓDULO DE LIMPIEZA (REQUISITO RÚBRICA) ---
 with tab3:
-    st.header("🤖 Consultor Médico con IA")
+    st.header("🧹 Proceso de ETL y Calidad de Datos")
+    with st.expander("Ver bitácora de limpieza aplicada"):
+        for log in logs:
+            st.write(f"✅ {log}")
     
+    st.subheader("Muestra de Datos Procesados")
+    st.dataframe(df_filtered.head(10))
+
+# --- TAB 4: CONSULTOR IA ---
+with tab4:
+    st.header("🤖 Consultor Senior con IA")
     if not user_api_key:
-        st.warning("⚠️ Por favor, ingresa tu Groq API Key en la barra lateral para usar la IA.")
+        st.warning("Ingrese su API Key en la barra lateral para activar la consultoría.")
     else:
         try:
             client = Groq(api_key=user_api_key)
-            pregunta = st.text_input("Haz una pregunta sobre los datos:")
+            pregunta = st.text_input("Ej: ¿Cómo influye la Diabetes (DM) en la estancia de pacientes mayores de 70 años?")
             
             if pregunta:
-                # Preparamos contexto resumido
+                # Construcción de contexto robusto
                 contexto = f"""
-                Pacientes: {len(df_filtered)}. Edad media: {df_filtered['AGE'].mean():.1f}. 
-                Mortalidad total: {len(df_filtered[df_filtered['OUTCOME'] == 'DEAD'])}.
-                Correlación DM con Estancia: {corr_matrix.loc['DM', 'STAY_DAYS']:.2f}.
+                Resumen estadístico actual:
+                - Pacientes filtrados: {len(df_filtered)}
+                - Mortalidad en este grupo: {df_filtered['MORTALITY'].mean()*100:.2f}%
+                - Correlación CKD-Mortalidad: {df_filtered[['CKD', 'MORTALITY']].corr().iloc[0,1]:.2f}
+                - Principales condiciones: {df_filtered[risk_cols].mean().to_dict()}
                 """
                 
-                with st.spinner("La IA está analizando los datos..."):
-                    completion = client.chat.completions.create(
-                        model="llama3-8b-8192",
+                with st.spinner("Analizando..."):
+                    chat_completion = client.chat.completions.create(
                         messages=[
-                            {"role": "system", "content": "Eres un experto médico. Responde basado en los datos proporcionados."},
-                            {"role": "user", "content": f"Datos: {contexto}. Pregunta: {pregunta}"}
-                        ]
+                            {"role": "system", "content": "Eres un Consultor Senior en Ciencia de Datos Médicos para EAFIT. Sé técnico y estratégico."},
+                            {"role": "user", "content": f"Contexto: {contexto}. Pregunta: {pregunta}"}
+                        ],
+                        model="llama3-8b-8192",
                     )
-                    st.markdown("### 💡 Respuesta del Consultor:")
-                    st.write(completion.choices[0].message.content)
+                    st.success("Análisis del Consultor:")
+                    st.write(chat_completion.choices[0].message.content)
         except Exception as e:
-            st.error(f"Error con la API Key: {e}")
+            st.error(f"Error en la conexión con Groq: {e}")
