@@ -169,71 +169,73 @@ with tab4:
 
 
 with tab4:
-    st.header("🤖 Consultor Estratégico de Salud (LLM)")
+    st.header("📋 Informe Ejecutivo de Consultoría")
     st.markdown("""
-        Esta unidad de inteligencia artificial actúa como un **Consultor Senior en Ciencia de Datos**. 
-        Su objetivo es interpretar las tendencias de los pacientes de HDHI y proponer planes de acción.
+        Este módulo utiliza inteligencia artificial para analizar el segmento de pacientes seleccionado 
+        y generar un informe de recomendaciones estratégicas para la dirección del hospital.
     """)
 
     if not user_api_key:
-        st.info("🔑 Por favor, ingresa tu Groq API Key en la barra lateral para activar la consultoría.")
+        st.info("🔑 Ingrese su Groq API Key en la barra lateral para habilitar la generación de informes.")
     else:
-        try:
-            client = Groq(api_key=user_api_key)
-            
-            # Input de usuario mejorado con ejemplos
-            pregunta = st.text_input(
-                "Consulta técnica o estratégica:", 
-                placeholder="Ej: ¿Cuáles son las tres principales causas de mortalidad en este grupo y qué sugiere para reducirlas?"
-            )
-            
-            if pregunta:
-                # 1. CONSTRUCCIÓN DE UN CONTEXTO "SMART"
-                # Calculamos insights clave antes de llamar a la IA
-                top_riesgos = df_filtered[preexistencias].mean().sort_values(ascending=False).head(3).to_dict()
-                corr_mortalidad = df_filtered.corr()['MORTALITY'].sort_values(ascending=False).iloc[1:4].to_dict()
+        # Botón único para disparar el análisis
+        if st.button("🚀 Generar Informe de Situación Actual"):
+            try:
+                client = Groq(api_key=user_api_key)
                 
-                contexto_medico = f"""
-                RESUMEN EJECUTIVO PARA ANÁLISIS:
-                - Universo de datos: {len(df_filtered)} pacientes.
-                - Tasa de mortalidad actual: {df_filtered['MORTALITY'].mean()*100:.1f}%.
-                - Estancia promedio: {df_filtered['DURATION OF STAY'].mean():.1f} días.
-                - Top 3 Prevalencias Médicas: {top_riesgos}.
-                - Factores con mayor correlación a muerte: {corr_mortalidad}.
-                - Rango de edad filtrado: {age_range[0]} a {age_range[1]} años.
+                # 1. PREPARACIÓN DE MÉTRICAS PARA EL INFORME
+                # Calculamos datos específicos del segmento filtrado
+                mortalidad_tasa = df_filtered['MORTALITY'].mean() * 100
+                estancia_media = df_filtered['DURATION OF STAY'].mean()
+                top_comorbilidad = df_filtered[['DM', 'HTN', 'CKD', 'CAD']].mean().idxmax()
+                porcentaje_critico = (df_filtered[top_comorbilidad].mean() * 100)
+                
+                # Contexto técnico para la IA
+                contexto_informe = f"""
+                DATOS DEL SEGMENTO FILTRADO:
+                - Volumen de pacientes: {len(df_filtered)}
+                - Tasa de mortalidad: {mortalidad_tasa:.1f}%
+                - Estancia promedio: {estancia_media:.1f} días
+                - Comorbilidad prevalente: {top_comorbilidad} (presente en el {porcentaje_critico:.1f}% de los casos)
+                - Rango de edad analizado: {age_range[0]} - {age_range[1]} años
                 """
-                
-                with st.spinner("El Consultor Senior está analizando las métricas..."):
-                    chat_completion = client.chat.completions.create(
+
+                with st.spinner("El Consultor Senior está redactando el informe..."):
+                    response = client.chat.completions.create(
                         messages=[
                             {
                                 "role": "system", 
-                                "content": f"""
-                                Eres un Consultor Senior de Ciencia de Datos para el hospital HDHI, 
-                                graduado de la Universidad EAFIT. Tu estilo es profesional, analítico y estratégico.
+                                "content": """
+                                Eres un Consultor Senior en Analítica de Salud de la Universidad EAFIT.
+                                Tu tarea es redactar un informe profesional basado exclusivamente en los datos proporcionados.
                                 
-                                INSTRUCCIONES:
-                                1. Usa los datos del CONTEXTO para respaldar tus respuestas.
-                                2. Si detectas una correlación alta, menciona una posible causa clínica.
-                                3. Siempre termina con una 'Recomendación Estratégica' para la gerencia del hospital.
-                                4. Tu tono debe ser el de un experto en Salud Pública y Analítica.
+                                Estructura del informe:
+                                1. RESUMEN EJECUTIVO: Breve estado actual del segmento.
+                                2. ANÁLISIS DE RIESGOS: Interpretación de la mortalidad y comorbilidades.
+                                3. IMPACTO OPERATIVO: Análisis de la estancia hospitalaria.
+                                4. RECOMENDACIONES ESTRATÉGICAS: Tres acciones concretas para mejorar los indicadores.
+                                
+                                Tono: Ejecutivo, basado en evidencia y formal.
                                 """
                             },
                             {
                                 "role": "user", 
-                                "content": f"CONTEXTO DE LOS DATOS:\n{contexto_medico}\n\nPREGUNTA DEL USUARIO:\n{pregunta}"
+                                "content": f"Genera el informe profesional para este contexto:\n{contexto_informe}"
                             }
                         ],
                         model="llama3-8b-8192",
-                        temperature=0.7 # Un poco de creatividad para las recomendaciones
+                        temperature=0.3 # Baja temperatura para mayor consistencia profesional
                     )
-                    
-                    # Interfaz de respuesta elegante
-                    st.success("Análisis Estratégico Finalizado")
-                    st.markdown("---")
-                    st.markdown(chat_completion.choices[0].message.content)
-                    st.markdown("---")
-                    st.caption("Nota: Este análisis es generado por una IA y debe ser validado por personal médico.")
 
-        except Exception as e:
-            st.error(f"Hubo un problema con la conexión al consultor: {e}")
+                    # Presentación del informe en pantalla
+                    st.success("Informe generado con éxito")
+                    st.markdown("---")
+                    st.markdown(f"**Fecha del informe:** {pd.Timestamp.now().strftime('%Y-%m-%d')}")
+                    st.markdown(response.choices[0].message.content)
+                    st.markdown("---")
+                    
+                    # Opción para que el usuario pueda copiar el texto
+                    st.info("💡 Este informe puede ser utilizado para la toma de decisiones administrativas en el hospital HDHI.")
+
+            except Exception as e:
+                st.error(f"Error al generar el informe: {e}")
