@@ -178,19 +178,17 @@ with tab4:
     if not user_api_key:
         st.info("🔑 Ingrese su Groq API Key en la barra lateral para habilitar la generación de informes.")
     else:
-        # Botón único para disparar el análisis
         if st.button("🚀 Generar Informe de Situación Actual"):
             try:
                 client = Groq(api_key=user_api_key)
                 
-                # 1. PREPARACIÓN DE MÉTRICAS PARA EL INFORME
-                # Calculamos datos específicos del segmento filtrado
+                # PREPARACIÓN DE MÉTRICAS (Igual que antes)
                 mortalidad_tasa = df_filtered['MORTALITY'].mean() * 100
                 estancia_media = df_filtered['DURATION OF STAY'].mean()
-                top_comorbilidad = df_filtered[['DM', 'HTN', 'CKD', 'CAD']].mean().idxmax()
+                preexistencias = ['DM', 'HTN', 'CKD', 'CAD']
+                top_comorbilidad = df_filtered[preexistencias].mean().idxmax()
                 porcentaje_critico = (df_filtered[top_comorbilidad].mean() * 100)
                 
-                # Contexto técnico para la IA
                 contexto_informe = f"""
                 DATOS DEL SEGMENTO FILTRADO:
                 - Volumen de pacientes: {len(df_filtered)}
@@ -200,42 +198,28 @@ with tab4:
                 - Rango de edad analizado: {age_range[0]} - {age_range[1]} años
                 """
 
-                with st.spinner("El Consultor Senior está redactando el informe..."):
+                with st.spinner("El Consultor Senior está redactando el informe con Llama 3.3..."):
                     response = client.chat.completions.create(
                         messages=[
                             {
                                 "role": "system", 
-                                "content": """
-                                Eres un Consultor Senior en Analítica de Salud de la Universidad EAFIT.
-                                Tu tarea es redactar un informe profesional basado exclusivamente en los datos proporcionados.
-                                
-                                Estructura del informe:
-                                1. RESUMEN EJECUTIVO: Breve estado actual del segmento.
-                                2. ANÁLISIS DE RIESGOS: Interpretación de la mortalidad y comorbilidades.
-                                3. IMPACTO OPERATIVO: Análisis de la estancia hospitalaria.
-                                4. RECOMENDACIONES ESTRATÉGICAS: Tres acciones concretas para mejorar los indicadores.
-                                
-                                Tono: Ejecutivo, basado en evidencia y formal.
-                                """
+                                "content": "Eres un Consultor Senior en Analítica de Salud de la Universidad EAFIT. Redacta informes ejecutivos, técnicos y formales."
                             },
                             {
                                 "role": "user", 
-                                "content": f"Genera el informe profesional para este contexto:\n{contexto_informe}"
+                                "content": f"Genera un informe profesional estructurado (Resumen, Riesgos, Recomendaciones) para este contexto:\n{contexto_informe}"
                             }
                         ],
-                        model="llama3-8b-8192",
-                        temperature=0.3 # Baja temperatura para mayor consistencia profesional
+                        # MODELO ACTUALIZADO AQUÍ:
+                        model="llama-3.3-70b-versatile", 
+                        temperature=0.3
                     )
 
-                    # Presentación del informe en pantalla
                     st.success("Informe generado con éxito")
                     st.markdown("---")
-                    st.markdown(f"**Fecha del informe:** {pd.Timestamp.now().strftime('%Y-%m-%d')}")
                     st.markdown(response.choices[0].message.content)
                     st.markdown("---")
                     
-                    # Opción para que el usuario pueda copiar el texto
-                    st.info("💡 Este informe puede ser utilizado para la toma de decisiones administrativas en el hospital HDHI.")
-
             except Exception as e:
+                # Si el modelo 70b llegara a dar error de cuota, puedes intentar con "llama-3.1-8b-instant"
                 st.error(f"Error al generar el informe: {e}")
